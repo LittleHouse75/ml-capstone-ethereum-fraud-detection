@@ -1,6 +1,60 @@
 ![Banner](https://github.com/LittleHouse75/flatiron-resources/raw/main/NevitsBanner.png)
 # Machine Learning Modeling and Pipeline: Synthentic Data for Modeling Fraud in Ethereum Transactions
 
+
+----
+
+### BLUF — How the project changed and what we learned
+
+Compared to the original pitch, the project shifted from a broad “model zoo + possible SGAN + synthetic augmentation” idea to a **deployment-oriented fraud scoring pipeline** focused on **time, drift, and external validation**:
+
+- **Scope vs original pitch**
+  - Originally: supervised models on a labeled Ethereum benchmark (LogReg, RF, ExtraTrees, XGBoost, MLP), plus a **stretch goal** of ATD-SGAN / synthetic minority generation, and a **secondary DFPI (California Department of Financial Protection and InnovationPI) dataset** for external evaluation.
+  - Finally: kept the **supervised address-level pipeline** and **DFPI external dataset**, but **dropped SGAN and synthetic data** as out of scope.  
+    The project energy went into:
+    - Building a **clean, reusable feature-engineering + modeling pipeline**.
+    - Comparing **random vs time-based splits**.
+    - Testing **generalization to California DFPI scam wallets**.
+
+- **Key model results (top-line numbers)**
+  - **Random address split (same distribution, tuned XGBoost)**  
+    - ROC AUC ≈ **0.998**, AP ≈ **0.79**  
+    - At a precision-first operating point (precision ≥ 0.75 on validation):  
+      - Precision ≈ **0.79**, Recall ≈ **0.68**, F1 ≈ **0.73**  
+      - A **small high-risk segment** where ~**80% of alerts are true scams**.
+  - **Time-based split (train on past, test on future, tuned XGBoost)**  
+    - Future-window band: AUC ≈ **0.90–0.91**, AP ≈ **0.49–0.54**  
+    - At the same precision-first rule:  
+      - Precision ≈ **0.91**, Recall ≈ **0.25**, F1 ≈ **0.39**  
+      - Very **clean alerts** (91% of flagged addresses are scams) but the model **misses ~3 out of 4 scams** as patterns drift.
+  - **DFPI external evaluation (no retraining, same features + tuned XGBoost)**  
+    - ROC AUC ≈ **0.97**, AP ≈ **0.90** on the **California DFPI scam-wallet dataset**.  
+    - Most DFPI-listed scams appear near the **top of the ranked list**, with few benign addresses mixed in.
+
+- **Updated interpretation vs original goal**
+  - The original goal was “use ML (and possibly SGAN) to learn scam behavior and flag risky addresses.”  
+  - The final project shows **where that works and where it breaks**:
+    - On i.i.d. historical data, **behavioral features are extremely powerful** and support a very high-yield alert queue.
+    - Under **realistic time drift**, performance naturally drops: the model stays precise but loses recall, so **drift monitoring and retraining become mandatory**, not optional.
+    - External DFPI results show the model is **learning transferable fraud signals**, not just memorizing the benchmark.
+
+- **How this empowers a wallet provider**
+  - Provides a **concrete behavioral scoring pipeline** (features + tuned XGBoost) that can:
+    - Feed a **warning banner** before send.
+    - Drive a **short, prioritized queue** for fraud investigators.
+    - Maintain an **internal adaptive scam list** that can be refreshed as new labels arrive.
+  - Gives **actionable guidance on governance**, not just a ROC curve:
+    - Use **time-aware splits** instead of flattering random splits when estimating production performance.
+    - Treat random-split metrics as an **upper bound**, time-split metrics as a **realistic envelope**.
+    - Pair the model with **periodic retraining + drift checks** and external lists (DFPI-style) to keep coverage of new scams.
+
+Net: the project moved from “can we model scams (maybe with SGAN)?” to “here is a realistic, defensible way for a wallet provider to **score addresses, evaluate that score under drift, and keep the system useful over time**.”
+
+
+----
+
+
+
 ### 1. Business Problem Scenario
 
 ### Business problem
