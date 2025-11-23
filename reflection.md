@@ -22,6 +22,25 @@ The pipeline, while much cleaner than where I started, is also more rigid than I
 
 Finally, there’s an opportunity to tell the “false starts” story more clearly. The timestamp parsing problems, the near-leakage, the first disastrous time split—those are a big part of why I now care so much about time-aware splits and careful preprocessing. They’re only hinted at in the current write-up. Before final submission, I’d like to surface those a bit more and connect them to what I’d change next time.
 
+## Continual Improvement
+
+If I had additional time and resources, I’d focus on turning this into a continually improving, production-style system rather than a one-shot project:
+
+- **Richer, evolving label sources.**  
+  I’d systematically scrape and aggregate scam labels from multiple public sources (Etherscan tags, blacklist repos, regulator notices, phishing-report sites, etc.), deduplicate addresses, and track when each label was first seen. That would give me a growing “master list” of fraud wallets, not just a single academic snapshot plus DFPI.
+
+- **Larger, more realistic background data.**  
+  Alongside that, I’d build much larger pools of **non-scam** addresses by randomly sampling Ethereum addresses and transactions over time, not just neighbors of known scams. That would let me estimate how often the model fires on normal traffic and how stable that rate is as I expand the window.
+
+- **Cloud pipeline for retraining and monitoring.**  
+  I’d like to run this as a scheduled pipeline in the cloud: regularly ingest new labeled wallets and background transactions, refresh features, retrain the model when there’s enough drift or new data, and log performance over time. In parallel, I’d continuously score a random sample of recent Ethereum transactions or addresses and track alert rates, so I can see whether the model is behaving in line with expected scam prevalence and whether drift is creeping in.
+
+- **Model and methodology expansion.**  
+  With more time, I’d revisit semi-supervised ideas like SGAN or other anomaly/representation-learning approaches. Those make more sense once I have a larger unlabeled pool and better monitoring. I’d also experiment with graph-based models on the address–transaction network and compare them against the current tabular XGBoost baseline.
+
+- **Multi-chain extension.**  
+  Finally, I’d try to generalize the feature engineering and pipeline to other blockchains (starting with other EVM chains, then possibly non-EVM chains with adjusted features). The long-term goal would be a reusable “fraud feature + modeling” library that can be pointed at different chains, rather than a one-off Ethereum-only workflow.
+
 ## Feedback Request
 
 The main thing I’d like feedback on is structure.
