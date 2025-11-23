@@ -1,0 +1,78 @@
+# =========================
+# OS / Editor cruft
+# =========================
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# Linux / generic
+*.swp
+*.swo
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.code-workspace
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# =========================
+# Python / Build Artifacts
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual envs
+.venv/
+venv/
+env/
+.env/
+.env.*
+.conda/
+
+# Packaging / build
+build/
+dist/
+.eggs/
+*.egg-info/
+
+# Testing / coverage / caches
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.cache/
+
+# Logs
+*.log
+
+# =========================
+# Project Data & Models
+# =========================
+# Ignore everything in data/...
+data/*
+
+# ...but keep external data folder under version control
+!data/external/
+!data/external/**
+
+# Model artifacts / checkpoints
+models/
+checkpoints/
+*.pkl
+*.joblib
+*.h5
+
+# =========================
+# Misc
+# =========================
+# Local config
+*.local.json
+*.secret.*
