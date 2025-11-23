@@ -202,37 +202,10 @@ For each address (sender or receiver), features include:
   * builds or loads DFPI address features,
   * computes and visualizes performance.
 
-⠀
-⸻
-
-### 3. Repository Structure
-
-A simplified view (your actual tree may be a bit more detailed):
-
-project-ethereum/
-├─ data/
-│  ├─ Dataset.csv                 # Raw benchmark transactions (not always committed)
-│  ├─ address_features_*.parquet  # Engineered address-level tables
-│  └─ dfpi_*.parquet              # DFPI external evaluation tables
-├─ notebooks/
-│  ├─ 01_Overview.ipynb
-│  ├─ 02_RandomSplitAnalysis.ipynb
-│  ├─ 03_TimeSplitAnalysis.ipynb
-│  ├─ 04_DFPI_External_Eval.ipynb
-│  └─ (EDA / utility notebooks)
-└─ src/
-   ├─ utilities.py        # Paths, printing helpers, data loaders
-   ├─ featureeng.py       # Address-level feature engineering
-   ├─ baselines.py        # Simple baseline models (if present)
-   ├─ tuning.py           # Baseline + hyperparameter tuning routines
-   ├─ model_eval.py       # ROC/PR plots, calibration, threshold sweeps, metrics
-   ├─ seed_util.py        # Global SEED constant and helpers
-   └─ __init__.py
-
 
 ⸻
 
-### 4. Modeling and Evaluation Summary
+### 3. Modeling and Evaluation Summary
 
 * **Models tried**
   * Logistic Regression (with class_weight=“balanced”)
