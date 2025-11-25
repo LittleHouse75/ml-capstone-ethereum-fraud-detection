@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import shap
 
 from sklearn.model_selection import train_test_split
 from sklearn.calibration import calibration_curve
@@ -461,3 +462,148 @@ def print_metrics_block(label, m):
             print(v)
         else:
             print(f"{k:>14}: {v:0.4f}")
+
+# ============================================================
+# SHAP-based explainability for tree models (e.g., XGBoost)
+# ============================================================
+
+def compute_shap_values(
+    model,
+    X: pd.DataFrame,
+    max_background: int = 200,
+    max_samples: int = 500,
+    random_state: int = 42,
+):
+    """
+    Compute SHAP values using KernelExplainer (model-agnostic, slower but robust).
+
+    NOTE ON WHY WE USE KernelExplainer INSTEAD OF TreeExplainer
+    ----------------------------------------------------------------
+    We *originally* used shap.TreeExplainer for XGBoost models because it's much
+    faster and works directly on the tree ensemble. However, with the versions
+    of XGBoost + SHAP in this environment, TreeExplainer crashes when it tries
+    to read XGBoost's internal `base_score`:
+
+        ValueError: could not convert string to float: '[1.3987352E-1]'
+
+    Newer XGBoost stores `base_score` as a JSON-style array string (e.g. 
+    "[1.3987352E-1]"), while SHAP expects a simple float ("0.13987352") and
+    calls `float(...)` on it. That mismatch makes TreeExplainer unusable here.
+
+    To avoid version-specific hacks against XGBoost internals, we use
+    shap.KernelExplainer instead. It is slower (model-agnostic approximation),
+    but stable and compatible with our current library versions.
+
+    Parameters
+    ----------
+    model : fitted classifier with predict_proba
+    X : pd.DataFrame
+        Feature matrix to explain.
+    max_background : int
+        Max rows to use as background distribution.
+    max_samples : int
+        Max rows to actually explain.
+    random_state : int
+        Seed for reproducible sampling.
+
+    Returns
+    -------
+    shap_values_pos : np.ndarray
+        SHAP values for the positive (scam) class.
+    X_sample : pd.DataFrame
+        The (subsampled) feature matrix used for SHAP.
+    """
+    # Ensure DataFrame for convenient sampling
+    if not isinstance(X, pd.DataFrame):
+        X_df = pd.DataFrame(X)
+    else:
+        X_df = X
+
+    n_rows = len(X_df)
+    if n_rows == 0:
+        raise ValueError("X has zero rows; cannot compute SHAP values.")
+
+    # Background sample (for KernelExplainer)
+    bg_size = min(max_background, n_rows)
+    background = X_df.sample(bg_size, random_state=random_state)
+
+    # Sample points to explain
+    sample_size = min(max_samples, n_rows)
+    X_sample = X_df.sample(sample_size, random_state=random_state + 1)
+
+    # Model function that returns positive-class probability
+    def model_f(batch):
+        batch_arr = np.array(batch)
+        proba = model.predict_proba(batch_arr)
+        # positive class is column 1
+        return proba[:, 1]
+
+    explainer = shap.KernelExplainer(model_f, background.values)
+
+    # nsamples="auto" is slower but usually OK with our small sample_size
+    shap_values = explainer.shap_values(X_sample.values, nsamples="auto")
+
+    # KernelExplainer returns an array (n_samples, n_features) for binary setup
+    # If it's a list, take the positive class.
+    if isinstance(shap_values, list):
+        shap_values_pos = shap_values[1]
+    else:
+        shap_values_pos = shap_values
+
+    return shap_values_pos, X_sample
+
+
+def plot_shap_summary(
+    model,
+    X: pd.DataFrame,
+    feature_names=None,
+    max_samples: int = 5000,
+    random_state: int = 42,
+    show_bar: bool = True,
+    show_beeswarm: bool = True,
+):
+    """
+    Summary plots showing which features drive the positive (scam) class.
+
+    Produces:
+      - Bar plot of mean |SHAP| per feature
+      - Beeswarm plot of SHAP values vs feature values
+    """
+    shap_values, X_sample = compute_shap_values(
+        model=model,
+        X=X,
+        max_samples=max_samples,
+        random_state=random_state,
+    )
+
+    if isinstance(X_sample, pd.DataFrame):
+        data_for_plot = X_sample
+        feats = X_sample.columns if feature_names is None else feature_names
+    else:
+        data_for_plot = X_sample
+        feats = feature_names
+
+    if show_bar:
+        plt.figure(figsize=(8, 6))
+        shap.summary_plot(
+            shap_values,
+            data_for_plot,
+            feature_names=feats,
+            plot_type="bar",
+            show=False,
+            max_display=20,
+        )
+        plt.tight_layout()
+        plt.show()
+
+    if show_beeswarm:
+        plt.figure(figsize=(8, 6))
+        shap.summary_plot(
+            shap_values,
+            data_for_plot,
+            feature_names=feats,
+            show=False,
+            max_display=20,
+        )
+        plt.tight_layout()
+        plt.show()
