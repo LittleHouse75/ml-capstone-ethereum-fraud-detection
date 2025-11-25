@@ -177,39 +177,43 @@ addr_df = featureeng.engineer_features(
 )
 ```
 
-2.3 DFPI external evaluation dataset
+### 2.3 DFPI external evaluation dataset
 
-Source
-	•	California Department of Financial Protection and Innovation (DFPI) — Crypto Scam Tracker
+**Source**
+* California Department of Financial Protection and Innovation (DFPI) — Crypto Scam Tracker
 
-Pipeline
-	1.	Download DFPI scam wallet addresses
-	2.	Fetch on-chain transactions for these addresses + background traffic
-	3.	Run through the same address-level feature pipeline
-	4.	Load the tuned model trained on the benchmark
-	5.	Score addresses and evaluate ROC AUC, AP, and precision/recall
+⠀
+**Pipeline**
+1. Download DFPI scam wallet addresses
+2. Fetch on-chain transactions for these addresses + background traffic
+3. Run through the same address-level feature pipeline
+4. Load the tuned model trained on the benchmark
+5. Score addresses and evaluate **ROC AUC**, **AP**, and **precision/recall**
 
-In this repo
-	•	DFPI data under data/dfpi_*
-	•	External evaluation notebook: 04_DFPI_ExternalEval.ipynb
+⠀
+**In this repo**
+* DFPI data under data/dfpi_*
+* External evaluation notebook: 04_DFPI_ExternalEval.ipynb
 
+⠀
 ⸻
 
-3. Modeling and Evaluation Summary
+### 3. Modeling and Evaluation Summary
 
-Models examined
-	•	Logistic Regression
-	•	Random Forest
-	•	ExtraTrees
-	•	XGBoost (primary)
-	•	MLPClassifier (exploratory)
+**Models examined**
+* Logistic Regression
+* Random Forest
+* ExtraTrees
+* XGBoost (primary)
+* MLPClassifier (exploratory)
 
-Metrics
-	•	Primary: Average Precision (AP)
-	•	Secondary: ROC AUC, precision, recall, F1, confusion matrices, calibration curves
-	•	DFPI external: AP, ROC AUC, and precision/recall at meaningful thresholds
+⠀
+**Metrics**
+* Primary: **Average Precision (AP)**
+* Secondary: ROC AUC, precision, recall, F1, confusion matrices, calibration curves
+* DFPI external: AP, ROC AUC, and precision/recall at meaningful thresholds
 
-Interpretability
-	•	Feature importance + SHAP (XGBoost)
-	•	Behavioral drivers: burstiness, degree, temporal patterns, value flows
-
+⠀
+**Interpretability**
+* Feature importance + SHAP (XGBoost)
+* Behavioral drivers: burstiness, degree, temporal patterns, value flows
