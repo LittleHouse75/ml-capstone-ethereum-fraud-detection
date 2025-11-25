@@ -1,52 +1,53 @@
 # Reflection: From Benchmark Dataset to Real-World Scam Detection
 
-## Accomplishments
+### Accomplishments
 
-This project has been very iterative. A lot of things broke along the way—timestamp issues, leakage scares, time splits that tanked performance—and I restarted more times than I’d like to admit. But I’m proud that I ended up with a clear story instead of just a pile of experiments.
+The project moved through several restarts—timestamp bugs, leakage scares, and a time split that demolished my early results. The upside is that those detours forced the work into an actual narrative instead of a jumble of experiments.
 
-I started with a single academic Ethereum dataset and a vague idea of “let’s model fraud.” The project eventually turned into: build address-level features, compare a **random address split** to a **time-based past→future split**, and then see whether the final model can say anything about a separate DFPI scam-wallet dataset. That arc only appeared after the time split broke my original results and forced me to rethink what problem I was actually solving.
+I began with a single academic Ethereum dataset and a loose idea: *model fraud.* Over time, that turned into a clearer progression:
+build address-level features → test a **random address split** → test a **past→future time split** → evaluate the final model on a **real regulator dataset (DFPI)**.
+That last piece only emerged because the time split exposed how fragile the original story was. Fixing that pushed me to rethink the problem in terms of drift and transferability.
 
-I’m also happy that the model I pickled isn’t just a benchmark toy. The tuned XGBoost model trained on the benchmark data shows real predictive power on the DFPI scam-wallet set, concentrating most DFPI-reported scams in the extreme high-risk tail even though the base rate is tiny. That suggests the model learned behavioral signals that carry over into the real world, not just quirks of the academic data.
+The tuned XGBoost model I ended up with isn’t just a benchmark toy. Applied to the DFPI dataset—where scams are vanishingly rare—the model still shoves almost all DFPI-reported scams into the extreme right tail of the score distribution. That tells me it learned portable behavioral patterns rather than memorizing quirks of the academic data.
 
-On the engineering side, I’m glad I took the time to clean up the code. The first notebook was huge and messy. By the end, I’d moved feature engineering, utilities, tuning, and evaluation into shared Python modules and split the work across several smaller notebooks (overview, EDA, random split, time split, external evaluation). That made the notebooks feel more like guided stories instead of giant code dumps, and it gave me a reusable pipeline for future datasets.
+On the engineering side, I cleaned up a lot. The original notebook was enormous. By the end, feature engineering, utilities, tuning, and evaluation lived in shared modules, and the notebooks were split into a small sequence: overview, EDA, random split, time split, external evaluation. That shift made the whole project feel more like a set of explanations than a giant code dump, and it gave me a reusable structure for future datasets.
 
-Underneath all of this, the main win for me is that I didn’t bail when the “easy” story fell apart. When the time split wrecked the model’s performance, I went back, fixed the logic, and accepted that the real story here was about drift and evaluation design. That felt like a real modeling lesson, not just a technical one.
+The thing I’m most satisfied with is not giving up when the simple version collapsed. The failed time split made me slow down, fix the underlying logic, and accept that the real story here was about drift and evaluation design—not just hitting a high AUC.
 
-## Opportunity for Growth
+### Opportunity for Growth
 
-The biggest gap is the real-world dataset. Right now, the external evaluation focuses on DFPI-listed scam wallets plus some background traffic. It’s a solid proof of concept, but not yet the larger, more balanced, “production-like” dataset I’d want to really stress-test the model. With more time, I’d pull a larger, more representative set of **non-scam** addresses so I can see how the model behaves across everyday Ethereum activity, not just known bad actors.
+The main gap is scope. The DFPI dataset is valuable, but it’s still narrow: almost all addresses in that slice are neighbors of known scams. It’s a good stress test but not yet a broad, production-like “everyday Ethereum” dataset. With more time, I’d build a larger pool of **non-scam** addresses so I could measure how often the model fires on normal traffic.
 
-One explicit stretch goal from my original pitch that I didn’t reach was experimenting with SGAN / synthetic data (an ATD-SGAN-style semi-supervised approach). I traded that away in favor of really understanding the time-based splits and the DFPI results. I still think synthetic data could be interesting here, but it would need more time and focus than I had in this cycle.
+I also dropped one of my original ambitions: trying SGAN or other semi-supervised approaches. Once the time split blew up, I traded that exploration for deeper work on drift and external evaluation. I still want to revisit synthetic/representation-learning methods, but they’d need their own focused cycle.
 
-The pipeline, while much cleaner than where I started, is also more rigid than I’d like. It basically assumes XGBoost will be the main model. In a future iteration, I’d like a more flexible setup where I can point to a training dataset and a test dataset, have a small family of models trained and compared automatically, and then pick the winner based on the same metrics, instead of relying on my early assumption that XGBoost is “the one.”
+The pipeline itself is cleaner now, but it’s rigid. It assumes XGBoost is the main model. Next iteration, I want a more flexible system that can run a family of models end-to-end, compare them, and pick a champion without that early bias.
 
-Finally, there’s an opportunity to tell the “false starts” story more clearly. The timestamp parsing problems, the near-leakage, the first disastrous time split—those are a big part of why I now care so much about time-aware splits and careful preprocessing. They’re only hinted at in the current write-up. Before final submission, I’d like to surface those a bit more and connect them to what I’d change next time.
+Another thing worth surfacing more clearly is the set of mistakes: the timestamp parsing problems, the early leakage risk, the failed time split. Those missteps shaped the final design, and they’re underrepresented in the current write-up.
 
-## Continual Improvement
+### Continual Improvement
 
-If I had additional time and resources, I’d focus on turning this into a continually improving, production-style system rather than a one-shot project:
+If I were turning this into a longer-running system, I’d focus on five areas:
+* **Richer, evolving label sources.**
 
-- **Richer, evolving label sources.**  
-  I’d systematically scrape and aggregate scam labels from multiple public sources (Etherscan tags, blacklist repos, regulator notices, phishing-report sites, etc.), deduplicate addresses, and track when each label was first seen. That would give me a growing “master list” of fraud wallets, not just a single academic snapshot plus DFPI.
+⠀Aggregate scam labels from multiple places—Etherscan tags, public blacklists, regulator notices, phishing-report feeds—and keep track of when labels first appear. That becomes a growing master list instead of a fixed snapshot.
+* **Broader background data.**
 
-- **Larger, more realistic background data.**  
-  Alongside that, I’d build much larger pools of **non-scam** addresses by randomly sampling Ethereum addresses and transactions over time, not just neighbors of known scams. That would let me estimate how often the model fires on normal traffic and how stable that rate is as I expand the window.
+⠀Sample larger sets of *non-scam* addresses from general Ethereum activity, not just neighbors of known scams. That would let me measure alert rates and stability across regular traffic.
+* **Automated retraining and monitoring.**
 
-- **Cloud pipeline for retraining and monitoring.**  
-  I’d like to run this as a scheduled pipeline in the cloud: regularly ingest new labeled wallets and background transactions, refresh features, retrain the model when there’s enough drift or new data, and log performance over time. In parallel, I’d continuously score a random sample of recent Ethereum transactions or addresses and track alert rates, so I can see whether the model is behaving in line with expected scam prevalence and whether drift is creeping in.
+⠀Build a cloud pipeline that ingests new scam labels and transactions over time, refreshes features, retrains models as drift accumulates, and tracks alert-rate behavior on recent blockchain slices.
+* **Model and methodology expansion.**
 
-- **Model and methodology expansion.**  
-  With more time, I’d revisit semi-supervised ideas like SGAN or other anomaly/representation-learning approaches. Those make more sense once I have a larger unlabeled pool and better monitoring. I’d also experiment with graph-based models on the address–transaction network and compare them against the current tabular XGBoost baseline.
+⠀Revisit semi-supervised approaches and explore graph-based models on the address–transaction network. Compare them against the tabular XGBoost baseline inside the same evaluation harness.
+* **Multi-chain generalization.**
 
-- **Multi-chain extension.**  
-  Finally, I’d try to generalize the feature engineering and pipeline to other blockchains (starting with other EVM chains, then possibly non-EVM chains with adjusted features). The long-term goal would be a reusable “fraud feature + modeling” library that can be pointed at different chains, rather than a one-off Ethereum-only workflow.
+⠀Extend the feature engineering to other chains—first EVM-compatible, then non-EVM chains with modified features. Aim for a reusable “fraud modeling” toolkit rather than an Ethereum-only pipeline.
 
-## Feedback Request
+### Feedback Request
 
-The main thing I’d like feedback on is structure.
+I split the work into several notebooks and pushed most logic into .py modules. From my side, that made the project easier to manage, but I’m curious how it reads.
 
-I ended up with multiple notebooks (overview, EDA, random split, time split, DFPI evaluation) and pushed most of the heavy lifting into `.py` files. From my side, that made the work easier to manage and reuse, but I’m curious how it lands for other people.
+Do the notebooks feel like clear explanations that call well-named helpers, or does the separation hide too much of the core logic?
+Would a reader want to see more of the split logic and feature engineering inline, or is the modular structure clearer?
 
-As a reader, does this setup make the project easier to follow, or does it feel like too much is “hidden” in the modules? Do the notebooks feel like clear narratives that call well-named helpers, or do you find yourself wishing more of the core logic—especially the feature engineering and split logic—were visible directly in the notebooks?
-
-Any specific suggestions on where you’d like to see more code inline, or where the random vs time split and DFPI evaluation could be explained more clearly, would be really helpful as I polish the final version.
+Any thoughts on where the random vs. time split and DFPI evaluation could be more explicit would help as I polish the final pass.
