@@ -3,50 +3,60 @@
 
 # Ethereum Scam Address Modeling
 
-End-to-end address-level fraud modeling on Ethereum using a benchmark “synthetic” dataset, time-aware evaluation, and an external regulator dataset (California DFPI scam wallets).
+End-to-end address-level fraud modeling on Ethereum using a benchmark academic dataset, time-aware evaluation, and an external regulator dataset (California DFPI scam wallets).
 
 ---
 
 ## BLUF — What this project actually shows
 
-Compared to the original “model zoo + maybe SGAN + synthetic augmentation” idea, this project ended up focusing on a ****single, well-tuned supervised pipeline**** and how it behaves under ****time and dataset shift****.
+Compared to the early idea of “model zoo + SGAN + synthetic augmentation,” this project ultimately focused on a **single, well-tuned supervised pipeline** and how it behaves under **time drift** and **dataset shift**.
 
-****Scope vs original plan****
+### Scope vs the original plan
 
-- Started with: multiple classical models + a stretch goal of ATD-SGAN / synthetic data, plus a real-world regulator dataset.
-- Ended with: a ****clean address-level feature pipeline****, ****XGBoost as the primary model****, and three evaluation views:
-  1. ****Random address split**** (i.i.d. “ceiling” performance),
-  2. ****Time-based split**** (past → future, showing drift),
-  3. ****External DFPI dataset**** (transfer to a separate regulator-driven label source).
-- The SGAN / synthetic-data piece was dropped as out-of-scope for the project timeline.
+- **Originally:** multiple classical models, exploratory SGAN work, synthetic data generation, and a regulator dataset.
+- **Final project:**  
+  - A clean **address-level feature pipeline**,  
+  - **XGBoost** as the main model,  
+  - Three evaluation views that tell one coherent story:
+    1. **Random address split** (i.i.d. “ceiling” conditions)  
+    2. **Time-based split** (past → future, showing real drift)  
+    3. **External DFPI evaluation** (transfer to a regulator dataset)
 
-****Key results (headline metrics)****
+The SGAN portion was dropped as out-of-scope for a fixed project timeline.
 
-- ****Random address split (same distribution, tuned XGBoost)****  
-  - ROC AUC ≈ ****0.998****, Average Precision (AP) ≈ ****0.79****  
-  - In a small high-risk band, roughly ****80% of flagged addresses are true scams****.  
-  → On stable historical data, behavioral features are extremely powerful.
+### Key results (headline metrics)
 
-- ****Time-based split (train on past, test on future, tuned XGBoost)****  
-  - AP in future window ≈ ****0.49–0.54****, ROC AUC ≈ ****0.90–0.91****  
-  - At a precision-first operating point: Precision ≈ ****0.90+****, Recall ≈ ****0.25****  
-  → The model still produces a very ****clean alert queue****, but ****misses many new scams**** as patterns drift over time.
+#### **Random address split (i.i.d., tuned XGBoost)**
+- ROC AUC ≈ **0.998**  
+- Average Precision (AP) ≈ **0.79**  
+- In a tight high-risk band, around **80% of alerts** are true scams  
+→ When train/test share the same distribution, behavioral features are extremely powerful.
 
-- ****External DFPI evaluation (no retraining)****  
-  - ROC AUC ≈ ****0.97****, AP ≈ ****0.90**** on a dataset built from ****California DFPI scam wallets**** plus background traffic.  
-  - DFPI-listed scams tend to rank near the ****top of the score distribution****, with relatively few benign addresses mixed in.  
-  → The model appears to learn ****transferable fraud signals****, not just quirks of the benchmark.
+#### **Time-based split (train on past, test on future)**
+- ROC AUC ≈ **0.90–0.91**  
+- Future-window AP ≈ **0.49–0.54**  
+- Precision-first setting: **~0.90 precision**, **~0.25 recall**  
+→ The model still yields a *clean* alert queue, but misses many **new** scams as patterns drift.
 
-****Bottom line for a wallet provider****
+#### **External DFPI evaluation (no retraining)**
+- ROC AUC ≈ **0.97–0.98**  
+- Average Precision ≈ **0.11** (vs DFPI base rate ≈ **0.02%**)  
+- Known DFPI scams cluster in the **extreme right tail** of predicted risk  
+→ The model learned **transferable behavioral signals**, not just benchmark quirks.
 
-- You get a concrete ****behavioral scoring pipeline**** (features + tuned XGBoost) that can:
-  - Feed a ****warning banner**** before a send,
-  - Drive a ****short, high-yield queue**** for investigators,
-  - Maintain an ****internal, adaptive scam list**** that can be refreshed as new labels arrive.
-- You also get a realistic sense of limits:
-  - Random splits give an ****upper bound**** on performance.
-  - Time-aware splits and DFPI tests show what happens in the real world, where ****drift and label delay**** are unavoidable.
-  - Ongoing ****monitoring and retraining**** are mandatory if you want to keep catching new scams.
+### Bottom line for a wallet provider
+
+You get a concrete **behavioral scoring pipeline** (address features + tuned XGBoost) that can:
+
+- Power an **in-app warning banner** before a transaction is sent  
+- Drive a **short, high-yield triage queue** for analysts  
+- Maintain an **internal, continuously refreshed scam list**
+
+You also get a realistic sense of limits:
+
+- Random splits are an **upper bound**.  
+- Time splits + DFPI tests show what happens in the real world where **drift** and **label delay** exist.  
+- **Retraining and monitoring** are essential if you want to keep catching new scam patterns.
 
 ---
 
@@ -54,169 +64,152 @@ Compared to the original “model zoo + maybe SGAN + synthetic augmentation” i
 
 ### Business problem
 
-Public blockchains like Ethereum are full of fraud, but there is no standardized, shared “master list” of scam addresses. Wallet providers, exchanges, and analytics vendors maintain private lists based on:
+Public blockchains like Ethereum are full of fraud, but there is no standardized, shared “master list” of malicious addresses. Wallet providers and exchanges maintain their own private lists based on:
 
-- Proprietary labels,
-- Ad-hoc rules and heuristics,
-- Manual investigations.
+- Proprietary labels  
+- Ad-hoc rules and heuristics  
+- Manual investigations  
 
-These lists are expensive to maintain, incomplete, and slow to adapt to new scam patterns.
+These lists are incomplete, expensive, and slow to adapt to evolving scams.
 
-For a ****wallet provider****, this creates three main risks:
+This creates serious risk:
 
-- Users unknowingly send funds to ****known scam addresses****.
-- The provider faces ****reputational and compliance**** exposure.
-- Fraud teams lose time on manual triage instead of higher-value investigative work.
+- Users unknowingly send to **known scam addresses**  
+- Reputational and regulatory exposure  
+- Fraud teams spend hours in low-value manual triage
 
 ### Goal
 
-Build and evaluate a ****behavioral scam-scoring model**** at the ****address level**** that:
+Build and evaluate a **behavioral scam-scoring model** at the **address level** that:
 
-- Learns from historical labeled Ethereum transactions,
-- Flags ****high-risk destinations**** before a transaction is sent,
-- Helps internal teams maintain an up-to-date internal scam list without exposing proprietary labels.
+- Learns from historical labeled transactions  
+- Flags **high-risk destinations** before users send funds  
+- Helps maintain an internal, adaptive scam list without exposing proprietary labels  
 
 ### Modeling arc
 
-The modeling story runs through three stages:
+1. **Benchmark → Address features**  
+   - Start with a public, labeled Ethereum **transaction-level** dataset  
+   - Aggregate to **address-level behavioral features**  
+   - Construct a binary **Scam** label at the address level  
 
-1. ****Benchmark → Address features****  
-   - Start with an academic, labeled Ethereum ****transaction-level**** dataset.  
-   - Aggregate to ****address-level behavioral features**** (degrees, value behavior, timing, gas, graph metrics).
-   - Construct a binary ****Scam**** label at the address level.
+2. **Random vs. time-based splits on the benchmark**  
+   - **Random address split** → ideal i.i.d. scenario  
+   - **Time-based split** → train on past, test on future, revealing drift  
 
-2. ****Random vs time-based splits on the benchmark****  
-   - ****Random address split****: classic i.i.d. setup; shows how well the model can separate scam vs non-scam when train/test share the same distribution.  
-   - ****Time-based split****: train on ****earlier transactions****, test on ****later transactions****, with strict separation of past/future. This is closer to deployment reality and exposes concept drift.
-
-3. ****External evaluation on California DFPI scam wallets****  
-   - Pull scam addresses from the ****California Department of Financial Protection and Innovation (DFPI)**** crypto scam tracker.
-   - Fetch on-chain transactions for these addresses and mix with background traffic.
-   - Apply the tuned model trained on the benchmark ****without retraining**** and evaluate how well its scores align with DFPI-labeled scams.
+3. **External evaluation on California DFPI scam wallets**  
+   - Pull DFPI-labeled scam addresses  
+   - Fetch their on-chain history + background traffic  
+   - Apply the tuned model **without retraining**  
+   - Check whether DFPI scams still surface as high-risk  
 
 ---
 
 ## 2. Data Usage Guide
 
-This section explains ****what data is used****, ****where it comes from****, and ****how it flows**** through the pipeline.
+This section explains **what data is used**, **where it comes from**, and **how it flows** through the pipeline.
 
 ### 2.1 Benchmark Ethereum dataset (transactions)
 
-****Source****
+**Source**  
+- “Labeled Transactions-based Dataset of Ethereum Network” (public academic dataset)
 
-- “Labeled Transactions-based Dataset of Ethereum Network” (public academic benchmark from GitHub / associated paper).
+**In this repo**  
+- Expected raw file: `data/Dataset.csv`
 
-****In this repo****
+**Key columns**  
+- Core transaction fields: `hash`, `nonce`, `from_address`, `to_address`, `value`, `gas`, `gas_price`, `block_timestamp`, etc.  
+- Scam fields: `from_scam`, `to_scam`, `from_category`, `to_category`
 
-- Raw file expected at:  
-  `data/Dataset.csv`  
-  (Large raw files may be `.gitignored` depending on your setup.)
+**How it’s used**  
+1. **EDA & cleaning**  
+   - Timestamp normalization  
+   - Numeric coercion  
+   - Checks for format-based leakage  
 
-****Key columns (simplified)****
+2. **Splitting**  
+   - **Random split**: stratified address-level split, ignoring time  
+   - **Time split**: compute an 80% timestamp cutoff → build past vs future transaction windows  
 
-- Transaction-level fields: `hash`, `nonce`, `from_address`, `to_address`, `value`, `gas`, `gas_price`, `block_timestamp`, block metadata, etc.
-- Scam-related fields: `from_scam`, `to_scam`, `from_category`, `to_category`, etc.
+### 2.2 Address-level engineered features
 
-****How it’s used****
+**Generated files**  
+Examples:  
+- `address_features_random.parquet`  
+- `address_features_time_train.parquet`  
+- `address_features_time_test.parquet`
 
-1. ****EDA & cleaning****  
-   - Robust timestamp parsing into a consistent `block_timestamp_dt` (UTC).
-   - Numeric coercion for `value`, `gas`, `gas_price`, etc.
-   - Checks for timestamp-format leakage (e.g., scams vs non-scams using different string formats).
+**Feature families**
 
-2. ****Splitting****  
-   - ****Random split notebook****: sample addresses into train/val/test with stratification, ignoring time.
-   - ****Time split notebook****: compute a time cutoff (e.g., 80% quantile of timestamps) and build ****past vs future**** transaction windows.
+- **Degree / connectivity**  
+  `in_degree`, `out_degree`, `unique_in_degree`, `unique_out_degree`, etc.
 
-### 2.2 Engineered address-level features
+- **Amount behavior**  
+  Sums, means, max/min, inbound vs outbound value patterns  
 
-****Generated files****
+- **Temporal behavior**  
+  Duration, gaps, burst metrics, hour-of-day statistics, last-seen recency  
 
-- Address-level tables, e.g.:  
-  `data/address_features_random.parquet`  
-  `data/address_features_time_train.parquet`  
-  `data/address_features_time_test.parquet`  
-  (Exact filenames may differ slightly; see notebooks and `src/featureeng.py`.)
+- **Gas behavior**  
+  Average gas, gas price patterns  
 
-****Feature families****
+- **Graph metrics**  
+  Local clustering, undirected degree  
 
-For each address (sender or receiver), features include:
+**Labeling**  
+- `Scam = 1` if an address appears in any scam field/category  
+- `Scam = 0` otherwise  
 
-- ****Degree / connectivity****
-  - `in_degree`, `out_degree`, `all_degree`
-  - `unique_in_degree`, `unique_out_degree`
-- ****Amount behavior****
-  - Incoming / outgoing `sum`, `mean`, `max`, `min` of `value`
-- ****Temporal behavior****
-  - Activity duration, transaction counts, inter-transaction gap statistics
-  - Burstiness metrics (e.g., `max_gap / median_gap`)
-  - Hour-of-day statistics (mean hour, hour entropy)
-  - Recency and “last seen” relative to dataset start
-- ****Gas behavior****
-  - Average gas, average gas price
-- ****Graph metrics****
-  - Undirected clustering coefficient, etc.
+**How to regenerate**  
+Feature engineering lives in `src/featureeng.py`.
 
-****Labels****
+Example entry point:
 
-- Constructed from the original scam-related fields.  
-  - `Scam = 1` if an address appears in any scam-related field or category.  
-  - `Scam = 0` otherwise.
+```python
+from src import featureeng
 
-****How to regenerate****
+addr_df = featureeng.engineer_features(
+    transaction_df=df,
+    target_addresses=target_addresses,
+    addr_labels=addr_labels,
+    global_start=global_start,
+    split_name="Random Split"
+)
+```
 
-- The feature engineering logic lives in `src/featureeng.py`.
-- An example entry point is:
+2.3 DFPI external evaluation dataset
 
-  ```python
-  from src import featureeng
-  
-  addr_df = featureeng.engineer_features(
-      transaction_df=df,
-      target_addresses=target_addresses,
-      addr_labels=addr_labels,
-      global_start=global_start,
-      split_name="Random Split"
-  )
+Source
+	•	California Department of Financial Protection and Innovation (DFPI) — Crypto Scam Tracker
 
-* Notebooks call into these helpers so the exact feature recipe stays consistent across experiments.
+Pipeline
+	1.	Download DFPI scam wallet addresses
+	2.	Fetch on-chain transactions for these addresses + background traffic
+	3.	Run through the same address-level feature pipeline
+	4.	Load the tuned model trained on the benchmark
+	5.	Score addresses and evaluate ROC AUC, AP, and precision/recall
 
-⠀
-### 2.3 DFPI external evaluation dataset
-
-**Source**
-* California **Department of Financial Protection and Innovation (DFPI)** Crypto Scam Tracker.
-
-⠀
-**Pipeline (high-level)**
-1. Scrape or download **scam wallet addresses** from the DFPI website.
-2. Fetch **on-chain transactions** for these scam addresses plus a sample of non-listed addresses as background.
-3. Run them through the **same feature engineering functions** as the benchmark data, producing a DFPI address-level table.
-4. Load the **tuned model** (pickled from the benchmark training) and generate scam probabilities for each address.
-5. Evaluate AP, ROC AUC, and precision/recall at relevant thresholds.
-
-⠀
-**In this repo**
-* The exact DFPI data files are likely under data/dfpi_* (CSV/Parquet), plus an **external evaluation notebook** (e.g. 04_DFPI_External_Eval.ipynb) that:
-  * loads the trained model,
-  * builds or loads DFPI address features,
-  * computes and visualizes performance.
-
+In this repo
+	•	DFPI data under data/dfpi_*
+	•	External evaluation notebook: 04_DFPI_ExternalEval.ipynb
 
 ⸻
 
-### 3. Modeling and Evaluation Summary
+3. Modeling and Evaluation Summary
 
-* **Models tried**
-  * Logistic Regression (with class_weight=“balanced”)
-  * Random Forest
-  * ExtraTrees
-  * XGBoost (primary focus)
-  * MLPClassifier (exploratory)
-* **Evaluation metrics**
-  * Primary: **Average Precision (AP)**, due to heavy class imbalance.
-  * Secondary: ROC AUC, precision, recall, F1, confusion matrices, calibration curves.
-  * For DFPI external evaluation: AP, ROC AUC, and precision/recall at a chosen operating threshold.
-* **Interpretability**
-  * Feature importance and SHAP plots (for XGBoost) to understand which behavioral features drive scam predictions (e.g., bursts of activity, value patterns, timing, degree structure).
-⠀
+Models examined
+	•	Logistic Regression
+	•	Random Forest
+	•	ExtraTrees
+	•	XGBoost (primary)
+	•	MLPClassifier (exploratory)
+
+Metrics
+	•	Primary: Average Precision (AP)
+	•	Secondary: ROC AUC, precision, recall, F1, confusion matrices, calibration curves
+	•	DFPI external: AP, ROC AUC, and precision/recall at meaningful thresholds
+
+Interpretability
+	•	Feature importance + SHAP (XGBoost)
+	•	Behavioral drivers: burstiness, degree, temporal patterns, value flows
+
