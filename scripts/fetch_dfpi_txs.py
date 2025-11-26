@@ -15,7 +15,7 @@ print(">>> fetch_dfpi_txs.py starting up")
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 print("PROJECT_ROOT:", PROJECT_ROOT)
 
-ADDRESSES_FILE = PROJECT_ROOT / "data" / "external" / "dfpi_eth_scams.txt"
+ADDRESSES_FILE = PROJECT_ROOT / "data" / "external" / "dfpi_eth_nonscam.txt"
 RAW_DIR = PROJECT_ROOT / "data" / "external" / "dfpi_raw"
 COMBINED_CSV = PROJECT_ROOT / "data" / "external" / "dfpi_all_txs.csv"
 
